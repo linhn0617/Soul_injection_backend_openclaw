@@ -25,6 +25,7 @@ export type AgentRecord = {
   agentId: string;
   owner: string;              // wallet address（ownerAddress）
   tokenId?: string;           // 使用者的 SBT tokenId
+  agentName: string;          // 龍蝦名稱（前端傳入，上鏈 ERC8004 用）
   agentType: string;          // "fashion" | "sport" | "shopping" | "general"
   agentAddress?: string;      // 龍蝦錢包地址（ERC8004 完成後填入）
   encryptedKey?: string;      // 龍蝦私鑰（TODO: 加密存儲）
@@ -80,14 +81,15 @@ export function createAgentRouter(): Router {
    *
    * Web 端建立龍蝦時呼叫，產生 agentId 與 Telegram deep link
    *
-   * Body: { ownerAddress, tokenId }
+   * Body: { ownerAddress, tokenId, agentName }
    * Response: { agentId, deepLink }
    */
   router.post("/v1/agent/register", async (req: Request, res: Response) => {
     try {
-      const { ownerAddress, tokenId } = req.body as {
+      const { ownerAddress, tokenId, agentName } = req.body as {
         ownerAddress: string;
         tokenId?: string;
+        agentName?: string;
       };
 
       if (!ownerAddress) {
@@ -106,6 +108,7 @@ export function createAgentRouter(): Router {
         agentId,
         owner: ownerAddress,
         tokenId,
+        agentName: agentName || "Twin Matrix Agent",
         agentType: "general",
         telegramPayload,
         status: "pending",
@@ -174,7 +177,7 @@ export function createAgentRouter(): Router {
 
       // 產龍蝦錢包 + ERC8004 鏈上註冊（mock 或真實）
       const tokenId = agent.tokenId ?? "0";
-      const { agentAddress, privateKey } = await registerAgentOnChain(agent.owner, tokenId);
+      const { agentAddress, privateKey } = await registerAgentOnChain(agent.owner, tokenId, agent.agentName);
 
       agent.agentAddress = agentAddress;
       agent.encryptedKey = privateKey;   // TODO: 加密存儲
