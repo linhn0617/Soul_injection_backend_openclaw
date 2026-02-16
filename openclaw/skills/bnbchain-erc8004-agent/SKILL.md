@@ -34,6 +34,7 @@ uv pip install --index-url https://test.pypi.org/simple/ \
 ## Security Note
 
 This skill manages a wallet specifically for your agent's identity.
+
 - **Password:** The wallet is encrypted. Set `WALLET_PASSWORD` env var or provide it when prompted.
 - **Private Key:** Stored locally in `.bnbagent_state` (encrypted). Do not share this file.
 
@@ -94,7 +95,7 @@ If your endpoints or description change:
 local_info = sdk.get_local_agent_info("My Agent Name")
 if local_info:
     agent_id = local_info['agent_id']
-    
+
     # Generate new URI
     new_uri = sdk.generate_agent_uri(
         name="My Agent Name",
@@ -102,7 +103,7 @@ if local_info:
         endpoints=[...],
         agent_id=agent_id
     )
-    
+
     # Update on-chain
     sdk.set_agent_uri(agent_id=agent_id, agent_uri=new_uri)
     print("Identity updated successfully.")

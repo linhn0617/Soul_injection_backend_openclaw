@@ -11,10 +11,8 @@
  * 不需修改 Telegram extension，任何新使用者點擊 deep link 都可觸發。
  */
 
-import { getBackendUrl } from "./runtime.js";
-import { inject } from "./inject.js";
-import { resolveWorkspaceDirForAgent } from "./workspace-dir.js";
 import { getActiveAgentId, setActiveAgentId } from "./active-map.js";
+import { getBackendUrl } from "./runtime.js";
 
 type BindRequest = {
   payload: string;
@@ -27,21 +25,36 @@ type BindResponse = {
   agentType: string;
   telegramUserId: string;
   status: string;
+  agentAddress?: string;
 };
 
 type ParsedPayload = {
   agentId: string;
-  owner: string;
 };
 
-/** 解析 Telegram deep link payload（base64url JSON） */
+/** 解析 Telegram deep link payload
+ * 支援兩種格式：
+ * 1. 新格式：agentId 直接作為 payload（agent_xxxxxxxxxxxxxxxx）
+ * 2. 舊格式：base64url(JSON { agentId, ... })
+ */
 function parsePayload(raw: string): ParsedPayload {
-  try {
-    const decoded = Buffer.from(raw, "base64url").toString("utf-8");
-    return JSON.parse(decoded) as ParsedPayload;
-  } catch {
-    throw new Error(`Invalid payload format: ${raw.slice(0, 20)}...`);
+  const trimmed = raw.trim();
+
+  // 新格式：直接是 agentId
+  if (/^agent_[0-9a-f]+$/.test(trimmed)) {
+    return { agentId: trimmed };
   }
+
+  // 舊格式：base64url JSON
+  try {
+    const decoded = Buffer.from(trimmed, "base64url").toString("utf-8");
+    const parsed = JSON.parse(decoded) as { agentId?: string };
+    if (parsed.agentId) return { agentId: parsed.agentId };
+  } catch {
+    // fall through
+  }
+
+  throw new Error(`Invalid payload format: ${raw.slice(0, 30)}`);
 }
 
 /** 呼叫 Backend /v1/agent/bind */
@@ -57,47 +70,6 @@ async function bindAgent(payload: string, telegramUserId: string): Promise<BindR
     throw new Error(`agent/bind failed (${res.status}): ${err}`);
   }
   return res.json() as Promise<BindResponse>;
-}
-
-/** 格式化歡迎訊息 */
-function buildWelcomeMessage(params: {
-  agentId: string;
-  agentType: string;
-  injectedScopes: string[];
-  deniedScopes: string[];
-  expiry: string;
-}): string {
-  const { agentId, agentType, injectedScopes, deniedScopes, expiry } = params;
-  const scopeList = injectedScopes.map((s) => `• ${s}`).join("\n") || "(none)";
-  const expiryDate = new Date(expiry).toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
-
-  const lines = [
-    `🧬 Twin Matrix agent is ready`,
-    ``,
-    `Agent: \`${agentId}\``,
-    `Type: ${agentType}`,
-    `Authorization expires: ${expiryDate}`,
-    ``,
-    `Loaded domain projections:`,
-    scopeList,
-  ];
-
-  if (deniedScopes.length > 0) {
-    lines.push(``, `⚠️ The following domains are not authorized or unavailable:`);
-    lines.push(...deniedScopes.map((s) => `• ${s}`));
-  }
-
-  lines.push(
-    ``,
-    `You can now send messages to start interacting.`,
-    `e.g. "Recommend an outfit for today"`,
-  );
-
-  return lines.join("\n");
 }
 
 export type StartResult = {
@@ -147,52 +119,33 @@ export async function handleTelegramStart(
     };
   }
 
-  // 3. Inject：查鏈上授權 + 取得最新投影 + 寫入 md
-  const workspaceDir = resolveWorkspaceDirForAgent(agentId);
-  let injectResult: Awaited<ReturnType<typeof inject>>;
-  try {
-    injectResult = await inject(agentId, workspaceDir);
-  } catch (err) {
-    // inject 失敗通常是 permission 尚未 grant，告知使用者
-    return {
-      text: [
-        `✅ Agent bound (${agentId})`,
-        ``,
-        `⚠️ On-chain authorization not yet granted. Twin Matrix projections cannot be loaded.`,
-        `Please complete authorization on the Twin Matrix website first, then send a message.`,
-        ``,
-        `Error: ${err instanceof Error ? err.message : String(err)}`,
-      ].join("\n"),
-    };
-  }
-
-  // 4. 若使用者尚無 active agent，設為 active
+  // 3. 設定 active agent
   const currentActive = await getActiveAgentId(senderId);
-  const isFirstBind = !currentActive;
-  if (isFirstBind) {
+  if (!currentActive) {
     await setActiveAgentId(senderId, agentId);
   }
 
-  // 5. 回傳歡迎訊息
-  const welcomeText = buildWelcomeMessage({
-    agentId,
-    agentType: bindResult.agentType,
-    injectedScopes: injectResult.injected,
-    deniedScopes: injectResult.denied,
-    expiry: injectResult.expiry,
-  });
-
-  if (!isFirstBind) {
+  // 4. ERC8004 完成，提示用戶回網頁授權
+  // inject 不在此處執行，待用戶完成 bindAndGrant 後，
+  // 下一則訊息的 before_agent_start hook 會自動觸發 lazy inject
+  if (bindResult.agentAddress) {
     return {
       text: [
-        welcomeText,
+        `✅ Agent activated!`,
+        `🔗 Agent address: \`${bindResult.agentAddress}\``,
         ``,
-        `💡 You have another agent currently active.`,
-        `Type /switch ${bindResult.agentType} to switch to this agent,`,
-        `or /lobsters to see all your agents.`,
+        `Please return to the website and complete authorization.`,
+        `Once done, type /getPermission to load your authorized scopes.`,
       ].join("\n"),
     };
   }
 
-  return { text: welcomeText };
+  return {
+    text: [
+      `✅ Agent bound (${agentId})`,
+      ``,
+      `Please return to the website and complete authorization.`,
+      `Once done, type /getPermission to load your authorized scopes.`,
+    ].join("\n"),
+  };
 }

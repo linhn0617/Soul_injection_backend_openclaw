@@ -4,8 +4,8 @@
  * 列出使用者所有已綁定龍蝦及目前 active 狀態。
  */
 
-import { getBackendUrl } from "./runtime.js";
 import { getActiveAgentId } from "./active-map.js";
+import { getBackendUrl } from "./runtime.js";
 import { loadState } from "./state.js";
 import { resolveWorkspaceDirForAgent } from "./workspace-dir.js";
 
@@ -25,9 +25,7 @@ async function listAgents(telegramUserId: string): Promise<AgentRecord[]> {
   return data.agents ?? [];
 }
 
-export async function handleLobsters(
-  senderId: string | undefined,
-): Promise<{ text: string }> {
+export async function handleLobsters(senderId: string | undefined): Promise<{ text: string }> {
   if (!senderId) {
     return { text: "Unable to identify your Telegram account. Please try again." };
   }

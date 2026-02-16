@@ -17,8 +17,8 @@ OpenClaw 擴充功能，實作 Twin Matrix Soul-to-Agent Injection。
 
 ## 環境變數
 
-| 變數 | 預設值 | 說明 |
-|------|--------|------|
+| 變數                      | 預設值                  | 說明                     |
+| ------------------------- | ----------------------- | ------------------------ |
 | `TWIN_MATRIX_BACKEND_URL` | `http://localhost:3400` | Twin Matrix 後端服務位址 |
 
 ## 待實作（開會後）
@@ -147,6 +147,7 @@ inject(agentId, workspaceDir)
 ## Soul/Skill md 格式範例
 
 `.soul.style.md`：
+
 ```markdown
 ---
 agentId: agent_abc123
@@ -165,6 +166,7 @@ contextual_adaptability: 0.60
 ```
 
 `.skill.style.md`：
+
 ```markdown
 ---
 agentId: agent_abc123
@@ -176,6 +178,7 @@ expiry: 2026-03-12T00:00:00Z
 # Skill Matrix — Style
 
 ## Brand Affinity
+
 - Uniqlo: 0.85
 - COS: 0.78
 - Zara: 0.45
@@ -186,12 +189,12 @@ experimentation_level: 0.40
 
 ## 七大生活領域 Scope
 
-| Scope | Soul 投影檔 | Skill 投影檔 |
-|-------|------------|-------------|
-| `style` | `.soul.style.md` | `.skill.style.md` |
-| `food` | `.soul.food.md` | `.skill.food.md` |
-| `home` | `.soul.home.md` | `.skill.home.md` |
-| `mobility` | `.soul.mobility.md` | `.skill.mobility.md` |
+| Scope           | Soul 投影檔              | Skill 投影檔              |
+| --------------- | ------------------------ | ------------------------- |
+| `style`         | `.soul.style.md`         | `.skill.style.md`         |
+| `food`          | `.soul.food.md`          | `.skill.food.md`          |
+| `home`          | `.soul.home.md`          | `.skill.home.md`          |
+| `mobility`      | `.soul.mobility.md`      | `.skill.mobility.md`      |
 | `entertainment` | `.soul.entertainment.md` | `.skill.entertainment.md` |
-| `learning` | `.soul.learning.md` | `.skill.learning.md` |
-| `beauty` | `.soul.beauty.md` | `.skill.beauty.md` |
+| `learning`      | `.soul.learning.md`      | `.skill.learning.md`      |
+| `beauty`        | `.soul.beauty.md`        | `.skill.beauty.md`        |

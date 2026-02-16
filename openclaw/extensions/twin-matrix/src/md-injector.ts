@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { SCOPE_MAP } from "./scope-map.js";
 import type { DomainProjection } from "./projection-client.js";
+import { SCOPE_MAP } from "./scope-map.js";
 
 type InjectMeta = {
   versionId: string;

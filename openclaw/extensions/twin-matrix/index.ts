@@ -69,6 +69,22 @@ const twinMatrixPlugin = {
     });
 
     /**
+     * /getPermission
+     *
+     * 用戶完成 bindAndGrant 後輸入，查鏈上授權範圍並觸發 inject
+     */
+    api.registerCommand({
+      name: "getPermission",
+      description: "查鏈上授權範圍並載入投影",
+      acceptsArgs: false,
+      requireAuth: false,
+      handler: async (ctx) => {
+        const { handleGetPermission } = await import("./src/permission-handler.js");
+        return handleGetPermission(ctx.senderId);
+      },
+    });
+
+    /**
      * /lobsters
      *
      * 列出使用者所有已綁定龍蝦及目前 active 狀態。
@@ -97,6 +113,28 @@ const twinMatrixPlugin = {
       const { getActiveAgentId } = await import("./src/active-map.js");
       const agentId = await getActiveAgentId(senderId);
       if (!agentId) return;
+
+      const { resolveWorkspaceDirForAgent } = await import("./src/workspace-dir.js");
+      const workspaceDir = resolveWorkspaceDirForAgent(agentId);
+
+      // Lazy inject：workspace 無 md 檔時嘗試 inject（用戶可能已完成 bindAndGrant）
+      const fs = await import("node:fs/promises");
+      let hasMdFile = false;
+      try {
+        const files = await fs.readdir(workspaceDir);
+        hasMdFile = files.some((f) => f.startsWith(".soul.") && f.endsWith(".md"));
+      } catch {
+        // workspace 目錄不存在，視為無 md 檔
+      }
+
+      if (!hasMdFile) {
+        try {
+          const { inject } = await import("./src/inject.js");
+          await inject(agentId, workspaceDir);
+        } catch {
+          // permission 尚未 grant，靜默略過
+        }
+      }
 
       const { buildAgentContext } = await import("./src/context-builder.js");
       const context = await buildAgentContext(agentId);
@@ -153,10 +191,8 @@ const twinMatrixPlugin = {
           .option("--workspace <dir>", "Workspace 目錄")
           .action(async (opts: { agent?: string; workspace?: string }) => {
             const { loadState } = await import("./src/state.js");
-            const {
-              resolveWorkspaceDirForAgent,
-              resolveWorkspaceDir,
-            } = await import("./src/workspace-dir.js");
+            const { resolveWorkspaceDirForAgent, resolveWorkspaceDir } =
+              await import("./src/workspace-dir.js");
             const workspaceDir =
               opts.workspace ??
               (opts.agent ? resolveWorkspaceDirForAgent(opts.agent) : resolveWorkspaceDir());
@@ -193,10 +229,8 @@ const twinMatrixPlugin = {
             const fs = await import("node:fs/promises");
             const path = await import("node:path");
             const { SCOPE_MAP } = await import("./src/scope-map.js");
-            const {
-              resolveWorkspaceDirForAgent,
-              resolveWorkspaceDir,
-            } = await import("./src/workspace-dir.js");
+            const { resolveWorkspaceDirForAgent, resolveWorkspaceDir } =
+              await import("./src/workspace-dir.js");
             const workspaceDir =
               opts.workspace ??
               (opts.agent ? resolveWorkspaceDirForAgent(opts.agent) : resolveWorkspaceDir());

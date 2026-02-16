@@ -9,11 +9,11 @@
  * 5. 回傳確認訊息
  */
 
-import { getBackendUrl } from "./runtime.js";
 import { getActiveAgentId, setActiveAgentId } from "./active-map.js";
 import { inject } from "./inject.js";
-import { resolveWorkspaceDirForAgent } from "./workspace-dir.js";
+import { getBackendUrl } from "./runtime.js";
 import { loadState } from "./state.js";
+import { resolveWorkspaceDirForAgent } from "./workspace-dir.js";
 
 type AgentRecord = {
   agentId: string;
@@ -54,15 +54,15 @@ export async function handleSwitch(
   }
 
   if (agents.length === 0) {
-    return { text: "You don't have any agents yet.\nPlease create one on the Twin Matrix website to get an authorization link." };
+    return {
+      text: "You don't have any agents yet.\nPlease create one on the Twin Matrix website to get an authorization link.",
+    };
   }
 
   // 比對：編號或名稱（模糊）
   const query = args.trim();
   const byIndex = /^\d+$/.test(query) ? agents[parseInt(query, 10) - 1] : undefined;
-  const byName = agents.find(
-    (a) => a.agentType.includes(query) || query.includes(a.agentType),
-  );
+  const byName = agents.find((a) => a.agentType.includes(query) || query.includes(a.agentType));
   const target = byIndex ?? byName;
 
   if (!target) {

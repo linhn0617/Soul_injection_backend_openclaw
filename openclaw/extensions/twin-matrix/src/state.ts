@@ -9,9 +9,9 @@ import fs from "node:fs/promises";
 import path from "node:path";
 
 export type InjectState = {
-  agentId: string;           // V2：身份錨點
-  owner: string;             // V2：owner SBT / userId
-  userId: string;            // Matrix 資料所屬 userId
+  agentId: string; // V2：身份錨點
+  owner: string; // V2：owner SBT / userId
+  userId: string; // Matrix 資料所屬 userId
   permissionVersion: number; // V2：permission 版本號
   injectedScopes: string[];
   deniedScopes: string[];

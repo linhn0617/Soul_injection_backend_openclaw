@@ -12,12 +12,12 @@
 
 import fs from "node:fs/promises";
 import path from "node:path";
-import { resolvePermission } from "./grant-checker.js";
-import { fetchProjection } from "./projection-client.js";
-import { injectDomainToMd } from "./md-injector.js";
-import { loadState, saveState } from "./state.js";
-import { SCOPE_MAP } from "./scope-map.js";
 import type { DomainProjection } from "./projection-client.js";
+import { resolvePermission } from "./grant-checker.js";
+import { injectDomainToMd } from "./md-injector.js";
+import { fetchProjection } from "./projection-client.js";
+import { SCOPE_MAP } from "./scope-map.js";
+import { loadState, saveState } from "./state.js";
 
 export type InjectResult = {
   agentId: string;
@@ -100,26 +100,18 @@ export async function inject(agentId: string, workspaceDir: string): Promise<Inj
     throw new Error(`Permission invalid for agentId=${agentId}: ${permission.reason ?? "unknown"}`);
   }
 
-  const {
-    owner,
-    scope: authorizedScopes,
-    expiry,
-    permissionVersion,
-  } = permission;
+  const { owner, scope: authorizedScopes, expiry, permissionVersion } = permission;
 
   if (!owner || !authorizedScopes?.length || !expiry) {
     throw new Error("Incomplete permission data");
   }
 
-  // Step 2: owner → userId（PoC: owner 即 userId）
-  const userId = owner;
-
   // Filter to known scopes
   const knownScopes = authorizedScopes.filter((s) => SCOPE_MAP[s] !== undefined);
   const unknownScopes = authorizedScopes.filter((s) => SCOPE_MAP[s] === undefined);
 
-  // Step 3: 取得最新 projection（不傳 versionId）
-  const projectionResponse = await fetchProjection(userId, knownScopes);
+  // Step 3: 取得最新 projection（不傳 versionId，以 agentId 查詢）
+  const projectionResponse = await fetchProjection(agentId, knownScopes);
 
   // Step 4: 寫入 md 檔
   const injected: string[] = [];
@@ -133,7 +125,7 @@ export async function inject(agentId: string, workspaceDir: string): Promise<Inj
     }
 
     await injectDomainToMd(workspaceDir, scope, projection, {
-      versionId: projectionResponse.versionId,  // audit 用途
+      versionId: projectionResponse.versionId, // audit 用途
       checksum: projectionResponse.checksum,
       expiry,
     });
@@ -157,7 +149,7 @@ export async function inject(agentId: string, workspaceDir: string): Promise<Inj
   state.lastInject = {
     agentId,
     owner,
-    userId,
+    userId: agentId,
     permissionVersion: permissionVersion ?? 0,
     injectedScopes: injected,
     deniedScopes: denied,

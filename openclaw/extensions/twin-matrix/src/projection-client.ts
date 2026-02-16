@@ -14,22 +14,22 @@ export type DomainProjection = {
 };
 
 export type ProjectionResponse = {
-  userId: string;
-  versionId: string;   // audit 標記，非授權語義
-  checksum: string;    // audit 標記，非授權語義
+  agentId: string;
+  versionId: string; // audit 標記，非授權語義
+  checksum: string; // audit 標記，非授權語義
   projections: Record<string, DomainProjection>;
 };
 
 /**
  * 向 Backend 取得最新 projection（不綁定 versionId）
- * PoC: 呼叫 GET /v1/projection?userId=&scope=
+ * PoC: 呼叫 GET /v1/projection?agentId=&scope=
  */
 export async function fetchProjection(
-  userId: string,
+  agentId: string,
   scopes: string[],
 ): Promise<ProjectionResponse> {
   const params = new URLSearchParams({
-    userId,
+    agentId,
     scope: scopes.join(","),
   });
   const url = `${getBackendUrl()}/v1/projection?${params.toString()}`;

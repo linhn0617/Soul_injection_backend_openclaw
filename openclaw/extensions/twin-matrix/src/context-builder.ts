@@ -8,8 +8,8 @@
 
 import fs from "node:fs/promises";
 import path from "node:path";
-import { resolveWorkspaceDirForAgent } from "./workspace-dir.js";
 import { SCOPE_MAP } from "./scope-map.js";
+import { resolveWorkspaceDirForAgent } from "./workspace-dir.js";
 
 /**
  * 讀取指定 agentId 的所有已注入 soul/skill md，
@@ -36,11 +36,9 @@ export async function buildAgentContext(agentId: string): Promise<string | undef
 
   if (sections.length === 0) return undefined;
 
-  return [
-    "# Twin Matrix 投影（以下為使用者個人化狀態，回答時請優先參考）",
-    "",
-    ...sections,
-  ].join("\n");
+  return ["# Twin Matrix 投影（以下為使用者個人化狀態，回答時請優先參考）", "", ...sections].join(
+    "\n",
+  );
 }
 
 async function readFileSafe(filePath: string): Promise<string | undefined> {
