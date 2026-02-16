@@ -22,6 +22,7 @@ OpenClaw     inject 時查後端取得投影 → 寫入 soul/skill md
 
 ```bash
 npm install
+cp .env.example .env   # 填入實際環境變數
 npx tsx index.ts
 ```
 

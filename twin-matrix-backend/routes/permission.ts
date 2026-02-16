@@ -85,7 +85,17 @@ export function createPermissionRouter(): Router {
       }
 
       // 查鏈上 permission
-      const permission = await getPermission(agentAddress);
+      let permission;
+      try {
+        permission = await getPermission(agentAddress);
+      } catch (err) {
+        // getPermission 尚未實作（待合約工程師確認 ABI）或 permission 尚未授權
+        res.json({
+          valid: false,
+          reason: `Permission not yet available: ${err instanceof Error ? err.message : String(err)}`,
+        });
+        return;
+      }
 
       if (!permission.valid) {
         res.json({ valid: false, reason: "No permission found for agent" });

@@ -30,7 +30,7 @@ export function getAgentRegistryAddress(): string {
 export function getPermissionContractAddress(): string {
   // Permission 可能整合在 SBT 合約裡，或是獨立合約
   // 開會後確認
-  const addr = process.env.PERMISSION_CONTRACT_ADDRESS ?? getSbtContractAddress();
+  const addr = process.env.PERMISSION_CONTRACT_ADDRESS?.trim() || getSbtContractAddress();
   return addr;
 }
 

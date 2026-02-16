@@ -19,6 +19,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import crypto from "node:crypto";
 import { DATA_DIR } from "../index.js";
+import { registerAgentOnChain } from "../chain/index.js";
 
 export type AgentRecord = {
   agentId: string;
@@ -97,10 +98,9 @@ export function createAgentRouter(): Router {
       const agentId = `agent_${crypto.randomBytes(8).toString("hex")}`;
       const now = new Date().toISOString();
 
-      // Telegram deep link payload：base64url(JSON)，供 Telegram ?start= 使用
-      const telegramPayload = Buffer.from(
-        JSON.stringify({ agentId, ownerAddress }),
-      ).toString("base64url");
+      // Telegram deep link payload：直接用 agentId（22 字元，符合 TG 64 字元上限）
+      // 注意：JSON base64url 編碼後超過 64 字元，TG 會截斷導致 /start 無參數
+      const telegramPayload = agentId;
 
       const agent: AgentRecord = {
         agentId,
@@ -145,16 +145,20 @@ export function createAgentRouter(): Router {
         return;
       }
 
-      // 解析 payload
+      // 解析 payload：支援新格式（直接 agentId）與舊格式（base64url JSON）
       let agentId: string;
-      try {
-        const decoded = JSON.parse(Buffer.from(payload, "base64url").toString("utf-8")) as {
-          agentId: string;
-        };
-        agentId = decoded.agentId;
-      } catch {
-        res.status(400).json({ error: "Invalid payload" });
-        return;
+      const trimmed = payload.trim();
+      if (/^agent_[0-9a-f]+$/.test(trimmed)) {
+        agentId = trimmed;
+      } else {
+        try {
+          const decoded = JSON.parse(Buffer.from(trimmed, "base64url").toString("utf-8")) as { agentId?: string };
+          if (!decoded.agentId) throw new Error("missing agentId");
+          agentId = decoded.agentId;
+        } catch {
+          res.status(400).json({ error: "Invalid payload" });
+          return;
+        }
       }
 
       const agent = await loadAgent(agentId);
@@ -168,12 +172,22 @@ export function createAgentRouter(): Router {
       agent.updatedAt = new Date().toISOString();
       await saveAgent(agent);
 
+      // 產龍蝦錢包 + ERC8004 鏈上註冊（mock 或真實）
+      const tokenId = agent.tokenId ?? "0";
+      const { agentAddress, privateKey } = await registerAgentOnChain(agent.owner, tokenId);
+
+      agent.agentAddress = agentAddress;
+      agent.encryptedKey = privateKey;   // TODO: 加密存儲
+      agent.updatedAt = new Date().toISOString();
+      await saveAgent(agent);
+
       res.json({
         agentId: agent.agentId,
         owner: agent.owner,
         agentType: agent.agentType,
         telegramUserId,
         status: agent.status,
+        agentAddress,
       });
     } catch (err) {
       console.error("agent/bind error:", err);
