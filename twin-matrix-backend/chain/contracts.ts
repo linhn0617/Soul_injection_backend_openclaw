@@ -53,7 +53,8 @@ export function getPermissionContractAddress(): string {
 export const SBT_ABI: string[] = [
   // 已確認
   "function tokenIdOf(address ownerAddress) view returns (uint256)",
-  "function getAuthorizedLatestValues(uint256 tokenId) view returns (bytes32, bytes32)",
+  "function getAuthorizedLatestValues(uint256 tokenId) view returns (uint8[] indices, uint8[] values, uint32 version, bytes32 digest, uint64 blockNumber)",
+  "function getBoundAgents(uint256 tokenId) view returns (address[] agents)",
 
   // TODO: 待合約工程師確認
   // "function getPermission(address agentAddress) view returns (address owner, uint256 scopeMask, uint256 expiry, uint256 permissionVersion)",

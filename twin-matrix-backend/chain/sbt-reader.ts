@@ -23,7 +23,13 @@ import { getSbtContractAddress, getPermissionContractAddress, SBT_ABI } from "./
 // =========================================================================
 
 export type MatrixData = {
-  /** 64 個 int8 值，合約回傳的原始 matrix（2×bytes32 解包） */
+  /** indices[i] → values[i] 的稀疏 matrix 格式（合約回傳） */
+  indices: number[];
+  values: number[];
+  version: number;
+  digest: string;
+  blockNumber: bigint;
+  /** 展開後的 64 維陣列（index 對應位置填入 value，其餘為 0） */
   raw: number[];
 };
 
@@ -47,15 +53,13 @@ export type AgentOnChain = {
 // Helpers
 // =========================================================================
 
-/** bytes32 → int8[] （每個 byte 轉有號整數） */
-function bytes32ToInt8Array(hex: string): number[] {
-  const raw = hex.startsWith("0x") ? hex.slice(2) : hex;
-  const result: number[] = [];
-  for (let i = 0; i < raw.length; i += 2) {
-    const byte = parseInt(raw.slice(i, i + 2), 16);
-    result.push(byte > 127 ? byte - 256 : byte);
-  }
-  return result;
+/** indices + values 稀疏格式展開成 64 維陣列（uint8 值，未填處為 0） */
+function expandSparseToRaw(indices: number[], values: number[], size = 64): number[] {
+  const raw = new Array(size).fill(0);
+  indices.forEach((idx, i) => {
+    if (idx < size) raw[idx] = values[i] ?? 0;
+  });
+  return raw;
 }
 
 // =========================================================================
@@ -63,8 +67,14 @@ function bytes32ToInt8Array(hex: string): number[] {
 // =========================================================================
 
 function mockMatrix(): MatrixData {
-  // 64 個模擬 int8 值
-  return { raw: new Array(64).fill(0) };
+  return {
+    indices: [],
+    values: [],
+    version: 1,
+    digest: "0x" + "00".repeat(32),
+    blockNumber: BigInt(0),
+    raw: new Array(64).fill(0),
+  };
 }
 
 function mockPermission(agentAddress: string): PermissionData {
@@ -120,15 +130,25 @@ export async function getAuthorizedLatestValues(
   const agentWallet = getAgentWallet(agentPrivateKey);
   const contract = new Contract(getSbtContractAddress(), SBT_ABI, agentWallet);
 
-  const [part1, part2] = await contract.getAuthorizedLatestValues(tokenId) as [string, string];
+  const result = await contract.getAuthorizedLatestValues(tokenId) as {
+    indices: bigint[];
+    values: bigint[];
+    version: bigint;
+    digest: string;
+    blockNumber: bigint;
+  };
 
-  // 2×bytes32 → 64 個 int8
-  const raw = [
-    ...bytes32ToInt8Array(part1),
-    ...bytes32ToInt8Array(part2),
-  ];
+  const indices = result.indices.map(Number);
+  const values = result.values.map(Number);
 
-  return { raw };
+  return {
+    indices,
+    values,
+    version: Number(result.version),
+    digest: result.digest,
+    blockNumber: result.blockNumber,
+    raw: expandSparseToRaw(indices, values),
+  };
 }
 
 /**
@@ -152,13 +172,16 @@ export async function getPermission(agentAddress: string): Promise<PermissionDat
 }
 
 /**
- * 列出某 owner 所有龍蝦（TODO: 待確認 ABI）
+ * getBoundAgents(tokenId) → address[]
+ * 取得某 SBT tokenId 旗下所有已綁定龍蝦地址
  */
-export async function getAgentsByOwner(ownerAddress: string): Promise<AgentOnChain[]> {
+export async function getBoundAgents(tokenId: bigint): Promise<string[]> {
   if (!isChainEnabled()) {
-    console.log(`[chain:mock] getAgentsByOwner(${ownerAddress})`);
+    console.log(`[chain:mock] getBoundAgents(${tokenId})`);
     return [];
   }
 
-  throw new Error("getAgentsByOwner: function name not yet confirmed with contract engineer.");
+  const contract = new Contract(getSbtContractAddress(), SBT_ABI, getProvider());
+  const agents = await contract.getBoundAgents(tokenId) as string[];
+  return agents;
 }
