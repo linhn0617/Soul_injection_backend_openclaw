@@ -1,0 +1,17 @@
+{
+  "userId": "u_test_001",
+  "versionId": "v_001",
+  "checksum": "sha256:0d1ac810d5ac0c733d8fa963da61d1022546b7263dd649f36787787668fbdaa4",
+  "domain": "style",
+  "soul": {
+    "visibility_preference": 0.3,
+    "identity_expression": 0.8
+  },
+  "skill": {
+    "brand_affinity_matrix": {
+      "Uniqlo": 0.9,
+      "COS": 0.75
+    },
+    "style_consistency": 0.72
+  }
+}

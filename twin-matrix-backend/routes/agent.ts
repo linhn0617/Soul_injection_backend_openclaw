@@ -1,0 +1,241 @@
+/**
+ * Agent Routes (V2)
+ *
+ * agentId 是穩定身份錨點（對應鏈上 ERC8004）
+ * 生命週期獨立於 permission 更新，不因授權變更而重建
+ *
+ * API:
+ *   POST /v1/agent/register   — 建立 agentId（Web 端呼叫）
+ *   POST /v1/agent/bind       — 綁定 telegramUserId → agentId
+ *   GET  /v1/agent/resolve    — 查詢 agentId 完整資訊
+ *   GET  /v1/agent/list?owner — 列出某 owner 的所有 agent
+ *
+ * 資料存放：data/agents/{agentId}.json
+ */
+
+import type { Request, Response, Router } from "express";
+import { Router as createRouter } from "express";
+import fs from "node:fs/promises";
+import path from "node:path";
+import crypto from "node:crypto";
+import { DATA_DIR } from "../index.js";
+
+export type AgentRecord = {
+  agentId: string;
+  owner: string;              // wallet address（ownerAddress）
+  tokenId?: string;           // 使用者的 SBT tokenId
+  agentType: string;          // "fashion" | "sport" | "shopping" | "general"
+  agentAddress?: string;      // 龍蝦錢包地址（ERC8004 完成後填入）
+  encryptedKey?: string;      // 龍蝦私鑰（TODO: 加密存儲）
+  telegramUserId?: string;    // 綁定後填入
+  telegramPayload?: string;   // deep link payload（綁定前暫存）
+  status: "pending" | "active" | "revoked";
+  createdAt: string;
+  updatedAt: string;
+};
+
+const AGENTS_DIR = () => path.join(DATA_DIR, "agents");
+
+async function loadAgent(agentId: string): Promise<AgentRecord | null> {
+  const filePath = path.join(AGENTS_DIR(), `${agentId}.json`);
+  try {
+    const raw = await fs.readFile(filePath, "utf-8");
+    return JSON.parse(raw) as AgentRecord;
+  } catch {
+    return null;
+  }
+}
+
+async function saveAgent(agent: AgentRecord): Promise<void> {
+  await fs.mkdir(AGENTS_DIR(), { recursive: true });
+  const filePath = path.join(AGENTS_DIR(), `${agent.agentId}.json`);
+  await fs.writeFile(filePath, JSON.stringify(agent, null, 2), "utf-8");
+}
+
+async function listAgents(filter: { owner?: string; telegramUserId?: string }): Promise<AgentRecord[]> {
+  await fs.mkdir(AGENTS_DIR(), { recursive: true });
+  const files = await fs.readdir(AGENTS_DIR());
+  const agents: AgentRecord[] = [];
+  for (const file of files) {
+    if (!file.endsWith(".json")) continue;
+    try {
+      const raw = await fs.readFile(path.join(AGENTS_DIR(), file), "utf-8");
+      const agent = JSON.parse(raw) as AgentRecord;
+      if (filter.owner && agent.owner !== filter.owner) continue;
+      if (filter.telegramUserId && agent.telegramUserId !== filter.telegramUserId) continue;
+      agents.push(agent);
+    } catch {
+      // skip corrupted files
+    }
+  }
+  return agents;
+}
+
+export function createAgentRouter(): Router {
+  const router = createRouter();
+
+  /**
+   * POST /v1/agent/register
+   *
+   * Web 端建立龍蝦時呼叫，產生 agentId 與 Telegram deep link
+   *
+   * Body: { ownerAddress, tokenId }
+   * Response: { agentId, deepLink }
+   */
+  router.post("/v1/agent/register", async (req: Request, res: Response) => {
+    try {
+      const { ownerAddress, tokenId } = req.body as {
+        ownerAddress: string;
+        tokenId?: string;
+      };
+
+      if (!ownerAddress) {
+        res.status(400).json({ error: "ownerAddress is required" });
+        return;
+      }
+
+      const agentId = `agent_${crypto.randomBytes(8).toString("hex")}`;
+      const now = new Date().toISOString();
+
+      // Telegram deep link payload：base64url(JSON)，供 Telegram ?start= 使用
+      const telegramPayload = Buffer.from(
+        JSON.stringify({ agentId, ownerAddress }),
+      ).toString("base64url");
+
+      const agent: AgentRecord = {
+        agentId,
+        owner: ownerAddress,
+        tokenId,
+        agentType: "general",
+        telegramPayload,
+        status: "pending",
+        createdAt: now,
+        updatedAt: now,
+      };
+
+      await saveAgent(agent);
+
+      const botUsername = process.env.TELEGRAM_BOT_USERNAME ?? "YourBot";
+      const deepLink = `https://t.me/${botUsername}?start=${telegramPayload}`;
+
+      res.json({ agentId, deepLink });
+    } catch (err) {
+      console.error("agent/register error:", err);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  /**
+   * POST /v1/agent/bind
+   *
+   * Telegram 端收到 /start <payload> 後回呼，綁定 telegramUserId → agentId
+   *
+   * Body: { payload, telegramUserId }
+   * Response: { agentId, owner, telegramUserId, status }
+   */
+  router.post("/v1/agent/bind", async (req: Request, res: Response) => {
+    try {
+      const { payload, telegramUserId } = req.body as {
+        payload: string;
+        telegramUserId: string;
+      };
+
+      if (!payload || !telegramUserId) {
+        res.status(400).json({ error: "payload and telegramUserId are required" });
+        return;
+      }
+
+      // 解析 payload
+      let agentId: string;
+      try {
+        const decoded = JSON.parse(Buffer.from(payload, "base64url").toString("utf-8")) as {
+          agentId: string;
+        };
+        agentId = decoded.agentId;
+      } catch {
+        res.status(400).json({ error: "Invalid payload" });
+        return;
+      }
+
+      const agent = await loadAgent(agentId);
+      if (!agent) {
+        res.status(404).json({ error: `Agent not found: ${agentId}` });
+        return;
+      }
+
+      agent.telegramUserId = telegramUserId;
+      agent.status = "active";
+      agent.updatedAt = new Date().toISOString();
+      await saveAgent(agent);
+
+      res.json({
+        agentId: agent.agentId,
+        owner: agent.owner,
+        agentType: agent.agentType,
+        telegramUserId,
+        status: agent.status,
+      });
+    } catch (err) {
+      console.error("agent/bind error:", err);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  /**
+   * GET /v1/agent/resolve?agentId=
+   *
+   * 查詢 agentId 的完整資訊（身份資料 + 綁定狀態）
+   *
+   * Response: AgentRecord
+   */
+  router.get("/v1/agent/resolve", async (req: Request, res: Response) => {
+    try {
+      const { agentId } = req.query as { agentId?: string };
+
+      if (!agentId) {
+        res.status(400).json({ error: "agentId is required" });
+        return;
+      }
+
+      const agent = await loadAgent(agentId);
+      if (!agent) {
+        res.status(404).json({ error: `Agent not found: ${agentId}` });
+        return;
+      }
+
+      res.json(agent);
+    } catch (err) {
+      console.error("agent/resolve error:", err);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  /**
+   * GET /v1/agent/list?owner=
+   *
+   * 列出某 owner 的所有龍蝦
+   *
+   * Response: { agents: AgentRecord[] }
+   */
+  router.get("/v1/agent/list", async (req: Request, res: Response) => {
+    try {
+      const { owner, telegramUserId } = req.query as {
+        owner?: string;
+        telegramUserId?: string;
+      };
+
+      if (!owner && !telegramUserId) {
+        res.status(400).json({ error: "owner or telegramUserId is required" });
+        return;
+      }
+
+      const agents = await listAgents({ owner, telegramUserId });
+      res.json({ agents });
+    } catch (err) {
+      console.error("agent/list error:", err);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  return router;
+}

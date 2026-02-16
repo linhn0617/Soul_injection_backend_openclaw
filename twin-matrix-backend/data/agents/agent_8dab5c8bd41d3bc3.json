@@ -1,0 +1,11 @@
+{
+  "agentId": "agent_8dab5c8bd41d3bc3",
+  "owner": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+  "agentType": "general",
+  "telegramPayload": "eyJhZ2VudElkIjoiYWdlbnRfOGRhYjVjOGJkNDFkM2JjMyIsIm93bmVyQWRkcmVzcyI6IjB4ZjM5RmQ2ZTUxYWFkODhGNkY0Y2U2YUI4ODI3Mjc5Y2ZmRmI5MjI2NiJ9",
+  "status": "active",
+  "createdAt": "2026-02-15T13:24:33.140Z",
+  "updatedAt": "2026-02-15T13:25:02.979Z",
+  "telegramUserId": "8259020639",
+  "agentAddress": "0xAbCd1234AbCd1234AbCd1234AbCd1234AbCd1234"
+}

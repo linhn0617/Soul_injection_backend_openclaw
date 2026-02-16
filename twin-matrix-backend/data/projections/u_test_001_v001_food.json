@@ -1,0 +1,14 @@
+{
+  "userId": "u_test_001",
+  "versionId": "v_001",
+  "checksum": "sha256:0d1ac810d5ac0c733d8fa963da61d1022546b7263dd649f36787787668fbdaa4",
+  "domain": "food",
+  "soul": {
+    "adventurousness": 0.65
+  },
+  "skill": {
+    "brand_affinity_matrix": {
+      "鼎泰豐": 0.85
+    }
+  }
+}

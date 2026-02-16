@@ -1,0 +1,10 @@
+{
+  "agentId": "agent_9bb504dfdeee0421",
+  "owner": "u_test_001",
+  "agentType": "美食龍蝦",
+  "telegramPayload": "eyJhZ2VudElkIjoiYWdlbnRfOWJiNTA0ZGZkZWVlMDQyMSIsIm93bmVyIjoidV90ZXN0XzAwMSJ9",
+  "status": "active",
+  "createdAt": "2026-02-13T16:14:00.885Z",
+  "updatedAt": "2026-02-13T16:14:00.973Z",
+  "telegramUserId": "tg_test_999"
+}

@@ -1,0 +1,10 @@
+{
+  "agentId": "agent_da75b5d2ca439143",
+  "owner": "u_test_001",
+  "agentType": "穿搭龍蝦",
+  "telegramPayload": "eyJhZ2VudElkIjoiYWdlbnRfZGE3NWI1ZDJjYTQzOTE0MyIsIm93bmVyIjoidV90ZXN0XzAwMSJ9",
+  "status": "active",
+  "createdAt": "2026-02-13T16:10:15.632Z",
+  "updatedAt": "2026-02-13T16:11:01.617Z",
+  "telegramUserId": "tg_test_999"
+}

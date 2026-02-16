@@ -1,0 +1,15 @@
+{
+  "id": "twin-matrix",
+  "kind": "utility",
+  "description": "Twin Matrix Soul-to-Agent Injection",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "backendUrl": {
+        "type": "string",
+        "description": "Twin Matrix backend URL (default: http://localhost:3400)"
+      }
+    }
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "userId": "u123",
+  "versionId": "v_001",
+  "checksum": "sha256:abc123def456",
+  "domain": "style",
+  "soul": {
+    "visibility_preference": 0.35,
+    "identity_expression": 0.72,
+    "contextual_adaptability": 0.60
+  },
+  "skill": {
+    "brand_affinity_matrix": {
+      "Uniqlo": 0.85,
+      "COS": 0.78,
+      "Zara": 0.45
+    },
+    "style_consistency": 0.70,
+    "experimentation_level": 0.40
+  }
+}
