@@ -64,7 +64,8 @@ export async function handleSwitch(
   const query = args.trim();
   const byIndex = /^\d+$/.test(query) ? agents[parseInt(query, 10) - 1] : undefined;
   const byName = agents.find((a) => {
-    const name = (a.agentName ?? "").toLowerCase();
+    const name = a.agentName?.toLowerCase();
+    if (!name) return false;
     const q = query.toLowerCase();
     return name.includes(q) || q.includes(name);
   });
