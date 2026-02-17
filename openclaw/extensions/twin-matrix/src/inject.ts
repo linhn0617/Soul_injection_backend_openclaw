@@ -153,6 +153,7 @@ export async function inject(agentId: string, workspaceDir: string): Promise<Inj
     permissionVersion: permissionVersion ?? 0,
     injectedScopes: injected,
     deniedScopes: denied,
+    layers: projectionResponse.layers ?? [],
     injectedAt: new Date().toISOString(),
     expiry,
     auditVersionId: projectionResponse.versionId,

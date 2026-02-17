@@ -64,9 +64,9 @@ export async function handleSwitch(
   const query = args.trim();
   const byIndex = /^\d+$/.test(query) ? agents[parseInt(query, 10) - 1] : undefined;
   const byName = agents.find((a) => {
-    const displayName = a.agentName ?? a.agentType;
-    return displayName.includes(query) || query.includes(displayName) ||
-      a.agentType.includes(query) || query.includes(a.agentType);
+    const name = (a.agentName ?? "").toLowerCase();
+    const q = query.toLowerCase();
+    return name.includes(q) || q.includes(name);
   });
   const target = byIndex ?? byName;
 
@@ -104,13 +104,13 @@ export async function handleSwitch(
   await setActiveAgentId(senderId, agentId);
 
   const reloadedState = await loadState(workspaceDir);
-  const scopes = reloadedState.lastInject?.injectedScopes.join(", ") ?? "-";
+  const layers = reloadedState.lastInject?.layers?.join(", ") ?? "-";
 
   return {
     text: [
       `🔄 Switched to ${displayName}`,
       ``,
-      `Loaded domains: ${scopes}`,
+      `Loaded scope: ${layers}`,
       `You can now send messages to interact with ${displayName}.`,
     ].join("\n"),
   };

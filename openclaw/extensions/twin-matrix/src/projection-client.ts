@@ -18,6 +18,7 @@ export type ProjectionResponse = {
   versionId: string; // audit 標記，非授權語義
   checksum: string; // audit 標記，非授權語義
   projections: Record<string, DomainProjection>;
+  layers?: string[];
 };
 
 /**

@@ -86,6 +86,23 @@ function parseRawToProjections(raw: number[]): Record<string, DomainProjection> 
 }
 
 // =========================================================================
+// Layer detection (based on 256-dim vector index ranges)
+// =========================================================================
+
+const LAYER_RANGES: [string, number, number][] = [
+  ["Physical", 0, 63],
+  ["Digital", 64, 127],
+  ["Social", 128, 191],
+  ["Spiritual", 192, 255],
+];
+
+function detectLayers(indices: number[]): string[] {
+  return LAYER_RANGES
+    .filter(([, lo, hi]) => indices.some(idx => idx >= lo && idx <= hi))
+    .map(([name]) => name);
+}
+
+// =========================================================================
 // Agent record loader
 // =========================================================================
 
@@ -158,6 +175,7 @@ export function createProjectionRouter(): Router {
         ownerAddress,
         tokenId: tokenId.toString(),
         projections,
+        layers: detectLayers(matrixData.indices),
       });
     } catch (err) {
       console.error("projection error:", err);

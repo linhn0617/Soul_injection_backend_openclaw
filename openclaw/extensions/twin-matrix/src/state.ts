@@ -15,6 +15,7 @@ export type InjectState = {
   permissionVersion: number; // V2：permission 版本號
   injectedScopes: string[];
   deniedScopes: string[];
+  layers?: string[];
   injectedAt: string;
   expiry: string;
   // audit fields（不作授權語義）
