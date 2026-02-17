@@ -17,6 +17,7 @@ import { resolveWorkspaceDirForAgent } from "./workspace-dir.js";
 
 type AgentRecord = {
   agentId: string;
+  agentName?: string;
   agentType: string;
   owner: string;
   telegramUserId?: string;
@@ -62,19 +63,24 @@ export async function handleSwitch(
   // 比對：編號或名稱（模糊）
   const query = args.trim();
   const byIndex = /^\d+$/.test(query) ? agents[parseInt(query, 10) - 1] : undefined;
-  const byName = agents.find((a) => a.agentType.includes(query) || query.includes(a.agentType));
+  const byName = agents.find((a) => {
+    const displayName = a.agentName ?? a.agentType;
+    return displayName.includes(query) || query.includes(displayName) ||
+      a.agentType.includes(query) || query.includes(a.agentType);
+  });
   const target = byIndex ?? byName;
 
   if (!target) {
-    const list = agents.map((a, i) => `${i + 1}. ${a.agentType}`).join("\n");
+    const list = agents.map((a, i) => `${i + 1}. ${a.agentName ?? a.agentType}`).join("\n");
     return { text: `Agent "${query}" not found.\n\nYour agents:\n${list}` };
   }
 
-  const { agentId, agentType } = target;
+  const { agentId } = target;
+  const displayName = target.agentName ?? target.agentType;
   const currentActive = await getActiveAgentId(senderId);
 
   if (currentActive === agentId) {
-    return { text: `${agentType} is already the active agent.` };
+    return { text: `${displayName} is already the active agent.` };
   }
 
   // 若 workspace 尚無 inject 狀態 → 自動 inject
@@ -86,7 +92,7 @@ export async function handleSwitch(
     } catch (err) {
       return {
         text: [
-          `⚠️ Switch failed: unable to load Twin Matrix projections for ${agentType}.`,
+          `⚠️ Switch failed: unable to load Twin Matrix projections for ${displayName}.`,
           `Please make sure on-chain authorization is complete.`,
           `Error: ${err instanceof Error ? err.message : String(err)}`,
         ].join("\n"),
@@ -102,10 +108,10 @@ export async function handleSwitch(
 
   return {
     text: [
-      `🔄 Switched to ${agentType}`,
+      `🔄 Switched to ${displayName}`,
       ``,
       `Loaded domains: ${scopes}`,
-      `You can now send messages to interact with ${agentType}.`,
+      `You can now send messages to interact with ${displayName}.`,
     ].join("\n"),
   };
 }

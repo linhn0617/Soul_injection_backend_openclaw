@@ -87,7 +87,7 @@ export function createPermissionRouter(): Router {
       // 查鏈上 permission
       let permission;
       try {
-        permission = await getPermission(agentAddress);
+        permission = await getPermission(agent.owner, agentAddress, agent.encryptedKey ?? "");
       } catch (err) {
         // getPermission 尚未實作（待合約工程師確認 ABI）或 permission 尚未授權
         res.json({

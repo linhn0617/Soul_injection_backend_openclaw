@@ -11,6 +11,7 @@ import { resolveWorkspaceDirForAgent } from "./workspace-dir.js";
 
 type AgentRecord = {
   agentId: string;
+  agentName?: string;
   agentType: string;
   owner: string;
   telegramUserId?: string;
@@ -66,7 +67,7 @@ export async function handleLobsters(senderId: string | undefined): Promise<{ te
     const expired = inject ? new Date(inject.expiry) < new Date() : false;
     const statusTag = isActive ? " ✅ active" : expired ? " ⚠️ expired" : "";
 
-    lines.push(`${i + 1}. ${agent.agentType}${statusTag}`);
+    lines.push(`${i + 1}. ${agent.agentName ?? agent.agentType}${statusTag}`);
     lines.push(`   Domains: ${scopes}`);
     lines.push(`   Expires: ${expiry}`);
     lines.push("");

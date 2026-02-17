@@ -29,7 +29,7 @@ export type MatrixData = {
   version: number;
   digest: string;
   blockNumber: bigint;
-  /** 展開後的 64 維陣列（index 對應位置填入 value，其餘為 0） */
+  /** 展開後的 256 維陣列（index 對應位置填入 value，其餘為 0） */
   raw: number[];
 };
 
@@ -53,8 +53,8 @@ export type AgentOnChain = {
 // Helpers
 // =========================================================================
 
-/** indices + values 稀疏格式展開成 64 維陣列（uint8 值，未填處為 0） */
-function expandSparseToRaw(indices: number[], values: number[], size = 64): number[] {
+/** indices + values 稀疏格式展開成 256 維陣列（uint8 值，未填處為 0） */
+function expandSparseToRaw(indices: number[], values: number[], size = 256): number[] {
   const raw = new Array(size).fill(0);
   indices.forEach((idx, i) => {
     if (idx < size) raw[idx] = values[i] ?? 0;
@@ -73,7 +73,7 @@ function mockMatrix(): MatrixData {
     version: 1,
     digest: "0x" + "00".repeat(32),
     blockNumber: BigInt(0),
-    raw: new Array(64).fill(0),
+    raw: new Array(256).fill(0),
   };
 }
 
@@ -82,7 +82,7 @@ function mockPermission(agentAddress: string): PermissionData {
     valid: true,
     owner: "0xMockOwner",
     agentAddress,
-    scopeMask: BigInt(0b1111111), // 所有 7 個 domain 皆開啟
+    scopeMask: BigInt(8), // bit 3 = mobility only
     expiry: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
     permissionVersion: 1,
   };
@@ -154,21 +154,34 @@ export async function getAuthorizedLatestValues(
 /**
  * 讀取某龍蝦的授權狀態
  *
- * TODO: getPermission 的函式名稱與 ABI 待合約工程師確認
+ * 透過 getAuthorizedLatestValues 判斷授權：成功 = 已授權，revert = 未授權。
+ *
+ * @param owner           - SBT 持有者地址
+ * @param agentAddress    - 龍蝦地址
+ * @param agentPrivateKey - 龍蝦私鑰（用於 from 呼叫）
  */
-export async function getPermission(agentAddress: string): Promise<PermissionData> {
+export async function getPermission(
+  owner: string,
+  agentAddress: string,
+  agentPrivateKey: string,
+): Promise<PermissionData> {
   if (!isChainEnabled()) {
     console.log(`[chain:mock] getPermission(${agentAddress})`);
     return mockPermission(agentAddress);
   }
 
-  const contract = new Contract(getPermissionContractAddress(), SBT_ABI, getProvider());
-
-  // TODO: 待確認 ABI
-  // const result = await contract.getPermission(agentAddress);
-  // return parsePermissionResult(agentAddress, result);
-
-  throw new Error("getPermission: function name not yet confirmed with contract engineer.");
+  const tokenId = await getTokenIdOf(owner);
+  const matrix = await getAuthorizedLatestValues(tokenId, agentPrivateKey);
+  // 成功 → 已授權
+  return {
+    valid: true,
+    owner,
+    agentAddress,
+    scopeMask: BigInt(8), // bit 3 = mobility only
+    expiry: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+    permissionVersion: matrix.version,
+  };
+  // 若 getAuthorizedLatestValues throw → 由 permission.ts route 的 try/catch 捕捉 → valid: false
 }
 
 /**
