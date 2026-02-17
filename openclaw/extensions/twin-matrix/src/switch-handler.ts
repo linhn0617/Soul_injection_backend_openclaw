@@ -84,10 +84,10 @@ export async function handleSwitch(
     return { text: `${displayName} is already the active agent.` };
   }
 
-  // 若 workspace 尚無 inject 狀態 → 自動 inject
+  // 若 workspace 尚無 inject 狀態或缺少 layers → 自動 inject
   const workspaceDir = resolveWorkspaceDirForAgent(agentId);
   const state = await loadState(workspaceDir);
-  if (!state.lastInject) {
+  if (!state.lastInject || !state.lastInject.layers?.length) {
     try {
       await inject(agentId, workspaceDir);
     } catch (err) {

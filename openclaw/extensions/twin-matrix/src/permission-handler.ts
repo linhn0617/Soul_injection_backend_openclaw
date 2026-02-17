@@ -64,7 +64,9 @@ export async function handleGetPermission(
   try {
     const result = await inject(agentId, workspaceDir);
 
-    const scopeList = result.injected.map((s) => `• ${s}`).join("\n") || "(none)";
+    const layers = result.layers.length > 0
+      ? result.layers.map((s) => `• ${s}`).join("\n")
+      : "(none)";
     const expiryDate = new Date(result.expiry).toLocaleDateString("en-US", {
       year: "numeric",
       month: "long",
@@ -79,7 +81,7 @@ export async function handleGetPermission(
       `Expires: ${expiryDate}`,
       ``,
       `Authorized scopes:`,
-      scopeList,
+      layers,
     ];
 
     if (result.denied.length > 0) {

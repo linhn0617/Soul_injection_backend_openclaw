@@ -24,6 +24,7 @@ export type InjectResult = {
   owner: string;
   injected: string[];
   denied: string[];
+  layers: string[];
   expiry: string;
   // audit
   auditVersionId: string;
@@ -166,6 +167,7 @@ export async function inject(agentId: string, workspaceDir: string): Promise<Inj
     owner,
     injected,
     denied,
+    layers: projectionResponse.layers ?? [],
     expiry,
     auditVersionId: projectionResponse.versionId,
   };
