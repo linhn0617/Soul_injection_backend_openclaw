@@ -41,7 +41,7 @@ npx tsx index.ts
 | `TELEGRAM_BOT_USERNAME` | — | Telegram bot username（不含 @） |
 | `CHAIN_ENABLED` | `false` | `false` = mock 模式；`true` = 實際查 BNB Chain |
 | `RPC_URL` | — | BNB Testnet RPC endpoint |
-| `SBT_CONTRACT_ADDRESS` | testnet 地址 | TwinMatrixSBT 合約地址 |
+| `TWIN_MATRIX_SBT_ADDRESS` | testnet 地址 | TwinMatrixSBT 合約地址 |
 | `AGENT_REGISTRY_CONTRACT_ADDRESS` | — | ERC8004 AgentRegistry（待確認） |
 | `PERMISSION_CONTRACT_ADDRESS` | fallback SBT | Permission 合約（可與 SBT 相同） |
 | `OPERATOR_PRIVATE_KEY` | — | Operator 錢包私鑰（備用） |

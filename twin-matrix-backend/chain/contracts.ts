@@ -6,7 +6,7 @@
  *   - 合約 ABI（由合約工程師提供）
  *
  * TODO: 待確認
- *   - SBT_CONTRACT_ADDRESS
+ *   - TWIN_MATRIX_SBT_ADDRESS
  *   - AGENT_REGISTRY_CONTRACT_ADDRESS（ERC8004）
  *   - ABI: getMatrix / getPermission / getAgentsByOwner
  */
@@ -15,10 +15,10 @@
 // Contract Addresses
 // =========================================================================
 
-const SBT_CONTRACT_ADDRESS_DEFAULT = "0x4fb8181903E9D0034bbA4B1Dca3a282335E84978";
+const SBT_CONTRACT_ADDRESS_DEFAULT = "0x12C61b22b397a6D72AD85f699fAf2D75f50D556C";
 
 export function getSbtContractAddress(): string {
-  return process.env.SBT_CONTRACT_ADDRESS ?? SBT_CONTRACT_ADDRESS_DEFAULT;
+  return process.env.TWIN_MATRIX_SBT_ADDRESS ?? SBT_CONTRACT_ADDRESS_DEFAULT;
 }
 
 export function getAgentRegistryAddress(): string {
