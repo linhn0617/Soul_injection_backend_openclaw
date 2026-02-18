@@ -30,6 +30,38 @@ export type InjectResult = {
   auditVersionId: string;
 };
 
+async function ensurePersonaOverrideTemplate(
+  workspaceDir: string,
+  agentId: string,
+  owner: string,
+): Promise<void> {
+  const filePath = path.join(workspaceDir, ".persona.override.md");
+  try {
+    await fs.access(filePath);
+    return;
+  } catch {
+    // template not exists
+  }
+
+  const content = [
+    "# Twin Matrix Persona Override",
+    "",
+    `agentId: ${agentId}`,
+    `owner: ${owner}`,
+    "",
+    "你是這個 agent 的唯一 persona。",
+    "回答時必須以 Twin Matrix soul/skill 投影為最高優先。",
+    "不要使用預設 C-3PO 身份。",
+    "若資料不足，先說明限制，再提供保守建議。",
+    "",
+    "> 可直接編輯此檔，自訂此 agent 的語氣與人設。",
+    "",
+  ].join("\n");
+
+  await fs.mkdir(workspaceDir, { recursive: true });
+  await fs.writeFile(filePath, content, "utf-8");
+}
+
 /** PoC bootstrap: 更新 MEMORY.md 摘要 */
 async function appendToMemory(
   workspaceDir: string,
@@ -144,6 +176,7 @@ export async function inject(agentId: string, workspaceDir: string): Promise<Inj
       projectionResponse.projections,
     );
   }
+  await ensurePersonaOverrideTemplate(workspaceDir, agentId, owner);
 
   // Step 6: 更新 state
   const state = await loadState(workspaceDir);

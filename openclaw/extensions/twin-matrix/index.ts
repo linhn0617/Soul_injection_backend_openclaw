@@ -41,7 +41,7 @@ const twinMatrixPlugin = {
      */
     api.registerCommand({
       name: "start",
-      description: "Twin Matrix deep link 入口（綁定龍蝦並載入投影）",
+      description: "Twin Matrix deep link entry (bind and load projection)",
       acceptsArgs: true,
       requireAuth: false,
       handler: async (ctx) => {
@@ -59,7 +59,7 @@ const twinMatrixPlugin = {
      */
     api.registerCommand({
       name: "switch",
-      description: "切換 active 龍蝦",
+      description: "Switch active agent",
       acceptsArgs: true,
       requireAuth: false,
       handler: async (ctx) => {
@@ -75,12 +75,79 @@ const twinMatrixPlugin = {
      */
     api.registerCommand({
       name: "getPermission",
-      description: "查鏈上授權範圍並載入投影",
+      description: "Load on-chain permissions and projections",
       acceptsArgs: false,
       requireAuth: false,
       handler: async (ctx) => {
         const { handleGetPermission } = await import("./src/permission-handler.js");
-        return handleGetPermission(ctx.senderId);
+        return handleGetPermission(ctx.senderId, async (text: string) => {
+          if (!ctx.senderId) return;
+          const send = api.runtime?.channel?.telegram?.sendMessageTelegram;
+          if (!send) return;
+          await send(ctx.senderId, text, {
+            ...(ctx.messageThreadId != null ? { messageThreadId: ctx.messageThreadId } : {}),
+            ...(ctx.accountId ? { accountId: ctx.accountId } : {}),
+          });
+        });
+      },
+    });
+
+    /**
+     * /acceptmission
+     *
+     * 使用者接受目前 active agent 的任務：
+     * - 立即回覆「我已開始執行任務！」
+     * - 3 秒後主動推播「我已經完成任務，是否確認提交？」
+     */
+    api.registerCommand({
+      name: "acceptmission",
+      description: "Accept current mission",
+      acceptsArgs: false,
+      requireAuth: false,
+      handler: async (ctx) => {
+        const { handleAcceptMission } = await import("./src/mission-accept-handler.js");
+        return handleAcceptMission({
+          senderId: ctx.senderId,
+          sendFollowUp: async (text: string) => {
+            if (ctx.channel !== "telegram" || !ctx.senderId) return;
+            const send = api.runtime?.channel?.telegram?.sendMessageTelegram;
+            if (!send) return;
+            await send(ctx.senderId, text, {
+              ...(ctx.messageThreadId != null ? { messageThreadId: ctx.messageThreadId } : {}),
+              ...(ctx.accountId ? { accountId: ctx.accountId } : {}),
+            });
+          },
+        });
+      },
+    });
+
+    /**
+     * /missionComplete
+     *
+     * 使用者提交任務：
+     * - 1 秒後推播「恭喜任務通過審核，USDT 轉帳中」
+     * - 呼叫 backend 執行 USDT 轉帳
+     * - 完成後推播「恭喜，USDT 已轉帳至agent錢包」
+     */
+    api.registerCommand({
+      name: "missionComplete",
+      description: "Submit mission and settle reward",
+      acceptsArgs: false,
+      requireAuth: false,
+      handler: async (ctx) => {
+        const { handleMissionComplete } = await import("./src/mission-complete-handler.js");
+        return handleMissionComplete({
+          senderId: ctx.senderId,
+          sendFollowUp: async (text: string) => {
+            if (ctx.channel !== "telegram" || !ctx.senderId) return;
+            const send = api.runtime?.channel?.telegram?.sendMessageTelegram;
+            if (!send) return;
+            await send(ctx.senderId, text, {
+              ...(ctx.messageThreadId != null ? { messageThreadId: ctx.messageThreadId } : {}),
+              ...(ctx.accountId ? { accountId: ctx.accountId } : {}),
+            });
+          },
+        });
       },
     });
 
@@ -91,7 +158,7 @@ const twinMatrixPlugin = {
      */
     api.registerCommand({
       name: "lobsters",
-      description: "列出所有已綁定龍蝦",
+      description: "List all bound agents",
       acceptsArgs: false,
       requireAuth: false,
       handler: async (ctx) => {
@@ -136,11 +203,11 @@ const twinMatrixPlugin = {
         }
       }
 
-      const { buildAgentContext } = await import("./src/context-builder.js");
-      const context = await buildAgentContext(agentId);
-      if (!context) return;
+      const { buildAgentPersonaOverride } = await import("./src/context-builder.js");
+      const systemPrompt = await buildAgentPersonaOverride(agentId);
+      if (!systemPrompt) return;
 
-      return { prependContext: context };
+      return { systemPrompt };
     });
 
     // =========================================================================

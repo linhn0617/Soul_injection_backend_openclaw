@@ -14,8 +14,21 @@ export type GetPermissionResult = {
   text: string;
 };
 
+type DemoMissionCreateResponse = {
+  ok: boolean;
+  mission?: {
+    id: string;
+    taskName: string;
+    rewardUsdt: number;
+  };
+  error?: string;
+};
+
+type SendFollowUp = (text: string) => Promise<void>;
+
 export async function handleGetPermission(
   senderId: string | undefined,
+  sendFollowUp?: SendFollowUp,
 ): Promise<GetPermissionResult> {
   if (!senderId) {
     return { text: "Unable to identify your Telegram account. Please try again." };
@@ -86,6 +99,50 @@ export async function handleGetPermission(
 
     if (result.denied.length > 0) {
       lines.push(``, `⚠️ Unavailable scopes: ${result.denied.join(", ")}`);
+    }
+
+    // 授權完成後建立固定模板假任務，並主動推播到 TG
+    let missionCreationNotice: string | undefined;
+    try {
+      const missionRes = await fetch(`${getBackendUrl()}/v1/mission/create-demo`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ agentId }),
+      });
+
+      if (missionRes.ok) {
+        const missionPayload = (await missionRes.json()) as DemoMissionCreateResponse;
+        const mission = missionPayload.mission;
+        if (mission && sendFollowUp) {
+          setTimeout(() => {
+            void sendFollowUp(
+              [
+                "📌 New mission matched",
+                `Task: ${mission.taskName}`,
+                `Reward: ${mission.rewardUsdt} USDT`,
+                "",
+                "Type /acceptmission to accept the mission.",
+              ].join("\n"),
+            );
+          }, 2000);
+        }
+        if (mission) {
+          missionCreationNotice = `Mission ready: ${mission.taskName}. Type /acceptmission to continue.`;
+        } else {
+          missionCreationNotice = "Mission template created. Type /acceptmission to continue.";
+        }
+      } else {
+        const errText = await missionRes.text();
+        missionCreationNotice = `⚠️ Mission push is unavailable right now (${missionRes.status}). ${errText}`;
+      }
+    } catch (err) {
+      missionCreationNotice = `⚠️ Mission push is unavailable right now: ${
+        err instanceof Error ? err.message : String(err)
+      }`;
+    }
+
+    if (missionCreationNotice) {
+      lines.push("", missionCreationNotice);
     }
 
     lines.push(``, `You can now send messages to start interacting.`);

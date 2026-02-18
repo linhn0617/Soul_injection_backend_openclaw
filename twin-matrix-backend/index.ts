@@ -9,6 +9,7 @@ import { createPermissionRouter } from "./routes/permission.js";
 import { createProjectionRouter } from "./routes/projection.js";
 import { createAlignmentRouter } from "./routes/alignment.js";
 import { createAgentRouter } from "./routes/agent.js";
+import { createMissionRouter } from "./routes/mission.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export const DATA_DIR = path.join(__dirname, "data");
@@ -33,6 +34,7 @@ app.use(createAgentRouter());       // /v1/agent/*
 app.use(createPermissionRouter());  // /v1/permission/resolve
 app.use(createProjectionRouter());  // /v1/projection
 app.use(createAlignmentRouter());   // /v1/match/*
+app.use(createMissionRouter());     // /v1/mission/*
 
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3400;
 app.listen(PORT, () => {

@@ -6,6 +6,7 @@ import { resolveHeartbeatPrompt } from "../auto-reply/heartbeat.js";
 import { shouldLogVerbose } from "../globals.js";
 import { isTruthyEnvValue } from "../infra/env.js";
 import { createSubsystemLogger } from "../logging/subsystem.js";
+import { getGlobalHookRunner } from "../plugins/hook-runner-global.js";
 import { runCommandWithTimeout } from "../process/exec.js";
 import { resolveSessionAgentIds } from "./agent-scope.js";
 import { makeBootstrapWarn, resolveBootstrapContextForRun } from "./bootstrap-files.js";
@@ -50,6 +51,7 @@ export async function runCliAgent(params: {
   ownerNumbers?: string[];
   cliSessionId?: string;
   images?: ImageContent[];
+  senderId?: string;
 }): Promise<EmbeddedPiRunResult> {
   const started = Date.now();
   const workspaceResolution = resolveRunWorkspaceDir({
@@ -107,7 +109,7 @@ export async function runCliAgent(params: {
     cwd: process.cwd(),
     moduleUrl: import.meta.url,
   });
-  const systemPrompt = buildSystemPrompt({
+  let systemPrompt = buildSystemPrompt({
     workspaceDir,
     config: params.config,
     defaultThinkLevel: params.thinkLevel,
@@ -120,6 +122,33 @@ export async function runCliAgent(params: {
     modelDisplay,
     agentId: sessionAgentId,
   });
+
+  const hookRunner = getGlobalHookRunner();
+  if (hookRunner?.hasHooks("before_agent_start")) {
+    try {
+      const hookResult = await hookRunner.runBeforeAgentStart(
+        {
+          prompt: systemPrompt,
+        },
+        {
+          agentId: sessionAgentId,
+          sessionKey: params.sessionKey,
+          workspaceDir,
+          from: params.senderId ?? undefined,
+        },
+      );
+      if (hookResult?.systemPrompt?.trim()) {
+        systemPrompt = hookResult.systemPrompt;
+        log.debug(`hooks: system prompt overridden (${hookResult.systemPrompt.length} chars)`);
+      }
+      if (hookResult?.prependContext) {
+        systemPrompt = `${hookResult.prependContext}\n\n${systemPrompt}`;
+        log.debug(`hooks: prepended context to prompt (${hookResult.prependContext.length} chars)`);
+      }
+    } catch (hookErr) {
+      log.warn(`before_agent_start hook failed (cli): ${String(hookErr)}`);
+    }
+  }
 
   const { sessionId: cliSessionIdToSend, isNew } = resolveSessionIdToSend({
     backend,

@@ -119,37 +119,33 @@ export async function getTokenIdOf(ownerAddress: string): Promise<bigint> {
  * @param agentPrivateKey - 龍蝦私鑰（用於設定 from，實際為 eth_call 不需簽名）
  */
 export async function getAuthorizedLatestValues(
-  tokenId: bigint,
-  agentPrivateKey: string,
-): Promise<MatrixData> {
-  if (!isChainEnabled()) {
-    console.log(`[chain:mock] getAuthorizedLatestValues(${tokenId})`);
-    return mockMatrix();
-  }
+    tokenId: bigint,
+    agentPrivateKey: string,
+  ): Promise<MatrixData> {
+    if (!isChainEnabled()) {
+      console.log(`[chain:mock] getAuthorizedLatestValues(${tokenId})`);
+      return mockMatrix();
+    }
 
-  const agentWallet = getAgentWallet(agentPrivateKey);
-  const contract = new Contract(getSbtContractAddress(), SBT_ABI, agentWallet);
+    const agentWallet = getAgentWallet(agentPrivateKey);
+    const contract = new Contract(getSbtContractAddress(), SBT_ABI, agentWallet);
 
-  const result = await contract.getAuthorizedLatestValues(tokenId) as {
-    indices: bigint[];
-    values: bigint[];
-    version: bigint;
-    digest: string;
-    blockNumber: bigint;
-  };
+    // ethers v6 Result 繼承 Array，result.values 會撞到 Array.prototype.values()
+    // 因此改用 index 存取回傳值
+    const result = await contract.getAuthorizedLatestValues(tokenId);
 
-  const indices = result.indices.map(Number);
-  const values = result.values.map(Number);
+    const indices = Array.from(result[0] as bigint[]).map(Number);
+    const values = Array.from(result[1] as bigint[]).map(Number);
 
-  return {
-    indices,
-    values,
-    version: Number(result.version),
-    digest: result.digest,
-    blockNumber: result.blockNumber,
-    raw: expandSparseToRaw(indices, values),
-  };
-}
+    return {
+      indices,
+      values,
+      version: Number(result[2]),
+      digest: result[3] as string,
+      blockNumber: result[4] as bigint,
+      raw: expandSparseToRaw(indices, values),
+    };
+  }
 
 /**
  * 讀取某龍蝦的授權狀態

@@ -738,8 +738,14 @@ export async function runEmbeddedAttempt(
                 from: params.senderId ?? undefined,
               },
             );
+            if (hookResult?.systemPrompt?.trim()) {
+              effectivePrompt = hookResult.systemPrompt;
+              log.debug(
+                `hooks: system prompt overridden (${hookResult.systemPrompt.length} chars)`,
+              );
+            }
             if (hookResult?.prependContext) {
-              effectivePrompt = `${hookResult.prependContext}\n\n${params.prompt}`;
+              effectivePrompt = `${hookResult.prependContext}\n\n${effectivePrompt}`;
               log.debug(
                 `hooks: prepended context to prompt (${hookResult.prependContext.length} chars)`,
               );

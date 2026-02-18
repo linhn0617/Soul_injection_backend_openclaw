@@ -3,7 +3,7 @@
  *
  * 切換 active 龍蝦：
  * 1. GET /v1/agent/list?telegramUserId= 取得使用者龍蝦清單
- * 2. 依 args 比對編號或 agentType 名稱（模糊）
+ * 2. 依 args 比對編號或名稱（精準，忽略大小寫）
  * 3. 若 workspace 尚無 soul/skill md → 自動 inject
  * 4. 更新 active map
  * 5. 回傳確認訊息
@@ -60,14 +60,14 @@ export async function handleSwitch(
     };
   }
 
-  // 比對：編號或名稱（模糊）
+  // 比對：編號或名稱（精準，忽略大小寫）
   const query = args.trim();
   const byIndex = /^\d+$/.test(query) ? agents[parseInt(query, 10) - 1] : undefined;
+  const normalizedQuery = query.toLowerCase();
   const byName = agents.find((a) => {
-    const name = a.agentName?.toLowerCase();
-    if (!name) return false;
-    const q = query.toLowerCase();
-    return name.includes(q) || q.includes(name);
+    const name = a.agentName?.trim().toLowerCase();
+    const type = a.agentType.trim().toLowerCase();
+    return name === normalizedQuery || type === normalizedQuery;
   });
   const target = byIndex ?? byName;
 
