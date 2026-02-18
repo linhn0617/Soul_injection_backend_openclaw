@@ -77,9 +77,12 @@ export type MissionRecord = {
   updatedAt: string;
   completedAt?: string;
   transferTxHash?: string;
+  transferConfirmed?: boolean;
 };
 
 type MissionRecordWithScope = MissionRecord & {
+  status: "pending_accept" | "active" | "completed" | "expired";
+  statusInternal: MissionStatus;
   scope: string[];
 };
 
@@ -441,29 +444,41 @@ export function createMissionRouter(): Router {
         return;
       }
 
-      const { txHash } = await transferUsdt({
+      console.info(
+        `[mission] transfer start agentId=${agentId} to=${mission.agentAddress} amount=${mission.rewardUsdt}`,
+      );
+      const { txHash, confirmed } = await transferUsdt({
         to: mission.agentAddress,
         amountUsdt: mission.rewardUsdt,
       });
+      console.info(
+        `[mission] transfer submitted agentId=${agentId} txHash=${txHash} confirmed=${confirmed}`,
+      );
 
       const completedAt = new Date().toISOString();
       mission.status = "completed";
       mission.updatedAt = completedAt;
       mission.completedAt = completedAt;
       mission.transferTxHash = txHash;
+      mission.transferConfirmed = confirmed;
       missions[index] = mission;
       await saveAgentMissions(agentId, missions);
 
       res.json({
         ok: true,
         text: "Mission approved. USDT transfer is now processing.",
-        successText: "USDT has been transferred to the agent wallet.",
+        successText: confirmed
+          ? "USDT has been transferred to the agent wallet."
+          : "USDT transfer submitted. It is pending network confirmation.",
         txHash,
+        transferConfirmed: confirmed,
         mission,
       });
     } catch (err) {
       console.error("mission/complete error:", err);
-      res.status(500).json({ error: "Internal server error" });
+      res.status(500).json({
+        error: err instanceof Error ? err.message : "Internal server error",
+      });
     }
   });
 
@@ -514,10 +529,19 @@ export function createMissionRouter(): Router {
           }
         }
 
-        const normalized = missions.map((mission) => ({
-          ...mission,
-          scope: agentScopes,
-        })) as MissionRecordWithScope[];
+        const normalized = missions.map((mission) => {
+          const statusForFrontend = (
+            mission.status === "running" || mission.status === "await_submit"
+          )
+            ? "active"
+            : mission.status;
+          return {
+            ...mission,
+            status: statusForFrontend,
+            statusInternal: mission.status,
+            scope: agentScopes,
+          };
+        }) as MissionRecordWithScope[];
 
         allMissions.push(...normalized);
       }

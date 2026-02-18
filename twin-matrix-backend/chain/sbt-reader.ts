@@ -88,6 +88,34 @@ function mockPermission(agentAddress: string): PermissionData {
   };
 }
 
+function normalizeAddress(addr: string): string {
+  return addr.trim().toLowerCase();
+}
+
+function extractRevertSelector(err: unknown): string | undefined {
+  const e = err as { data?: unknown; info?: { error?: { data?: unknown } } };
+  const direct = typeof e?.data === "string" ? e.data : undefined;
+  if (direct && /^0x[0-9a-fA-F]{8}/.test(direct)) {
+    return direct.slice(0, 10).toLowerCase();
+  }
+  const nested = typeof e?.info?.error?.data === "string" ? e.info.error.data : undefined;
+  if (nested && /^0x[0-9a-fA-F]{8}/.test(nested)) {
+    return nested.slice(0, 10).toLowerCase();
+  }
+  const msg = err instanceof Error ? err.message : String(err);
+  const m = msg.match(/data=\"(0x[0-9a-fA-F]{8})/);
+  return m?.[1]?.toLowerCase();
+}
+
+function explainSelector(selector: string | undefined): string | undefined {
+  if (!selector) return undefined;
+  const table: Record<string, string> = {
+    "0xff2ec039":
+      "Agent is not authorized to read this SBT matrix (bindAndGrant missing, expired, or wrong caller).",
+  };
+  return table[selector];
+}
+
 // =========================================================================
 // Read Functions
 // =========================================================================
@@ -128,6 +156,9 @@ export async function getAuthorizedLatestValues(
     }
 
     const agentWallet = getAgentWallet(agentPrivateKey);
+    console.info(
+      `[chain] getAuthorizedLatestValues tokenId=${tokenId.toString()} caller=${agentWallet.address} sbt=${getSbtContractAddress()}`,
+    );
     const contract = new Contract(getSbtContractAddress(), SBT_ABI, agentWallet);
 
     // ethers v6 Result 繼承 Array，result.values 會撞到 Array.prototype.values()
@@ -166,9 +197,52 @@ export async function getPermission(
     return mockPermission(agentAddress);
   }
 
+  if (!agentPrivateKey?.trim()) {
+    throw new Error("Agent private key is missing.");
+  }
+
+  // Guard: ensure the stored private key really belongs to this agentAddress.
+  const caller = getAgentWallet(agentPrivateKey).address;
+  console.info(
+    `[chain] getPermission start owner=${owner} agentAddress=${agentAddress} caller=${caller}`,
+  );
+  if (normalizeAddress(caller) !== normalizeAddress(agentAddress)) {
+    throw new Error(
+      `Agent key mismatch: derived caller ${caller} does not match agentAddress ${agentAddress}.`,
+    );
+  }
+
   const tokenId = await getTokenIdOf(owner);
-  const matrix = await getAuthorizedLatestValues(tokenId, agentPrivateKey);
+
+  // Best-effort diagnostic: binding list can be eventually consistent or vary by contract impl.
+  // Do not hard-fail here; final truth is whether getAuthorizedLatestValues succeeds.
+  let isBound: boolean | undefined;
+  try {
+    const boundAgents = await getBoundAgents(tokenId);
+    isBound = boundAgents.some((a) => normalizeAddress(a) === normalizeAddress(agentAddress));
+  } catch {
+    isBound = undefined;
+  }
+
+  let matrix;
+  try {
+    matrix = await getAuthorizedLatestValues(tokenId, agentPrivateKey);
+  } catch (err) {
+    const selector = extractRevertSelector(err);
+    const explanation = explainSelector(selector);
+    if (explanation) {
+      const bindingHint =
+        isBound === false
+          ? ` Binding list does not currently include agent ${agentAddress} under tokenId=${tokenId.toString()}.`
+          : "";
+      throw new Error(`${explanation}${selector ? ` [selector: ${selector}]` : ""}${bindingHint}`);
+    }
+    throw err;
+  }
   // 成功 → 已授權
+  console.info(
+    `[chain] getPermission ok owner=${owner} agentAddress=${agentAddress} caller=${caller} tokenId=${tokenId.toString()} version=${matrix.version}`,
+  );
   return {
     valid: true,
     owner,

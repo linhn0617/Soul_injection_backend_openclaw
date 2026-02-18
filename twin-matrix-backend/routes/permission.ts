@@ -84,16 +84,36 @@ export function createPermissionRouter(): Router {
         return;
       }
 
+      console.info(
+        `[permission] resolve start agentId=${agentId} owner=${agent.owner} agentAddress=${agentAddress}`,
+      );
+
       // 查鏈上 permission
       let permission;
       try {
         permission = await getPermission(agent.owner, agentAddress, agent.encryptedKey ?? "");
       } catch (err) {
-        // getPermission 尚未實作（待合約工程師確認 ABI）或 permission 尚未授權
+        const msg = err instanceof Error ? err.message : String(err);
+        // Normalize technical call errors into user-facing hints.
+        let reason = msg;
+        if (msg.includes("Agent key mismatch")) {
+          reason =
+            "Agent wallet key mismatch. Please re-bind this agent so the on-chain agentAddress and local key are consistent.";
+        } else if (msg.includes("is not bound to owner")) {
+          reason =
+            "Agent is not bound to this SBT owner on-chain yet. Please complete bind on the website first.";
+        } else if (msg.includes("not authorized to read this SBT matrix")) {
+          reason =
+            "Agent is not granted permission yet (bindAndGrant missing/expired or caller mismatch).";
+        }
+
         res.json({
           valid: false,
-          reason: `Permission not yet available: ${err instanceof Error ? err.message : String(err)}`,
+          reason: `Permission not yet available: ${reason}`,
         });
+        console.warn(
+          `[permission] resolve failed agentId=${agentId} owner=${agent.owner} agentAddress=${agentAddress} reason=${reason}`,
+        );
         return;
       }
 
@@ -123,6 +143,9 @@ export function createPermissionRouter(): Router {
         expiry: permission.expiry,
         permissionVersion: permission.permissionVersion ?? 1,
       });
+      console.info(
+        `[permission] resolve ok agentId=${agentId} owner=${permission.owner} agentAddress=${agentAddress}`,
+      );
     } catch (err) {
       console.error("permission/resolve error:", err);
       res.status(500).json({ error: "Internal server error" });

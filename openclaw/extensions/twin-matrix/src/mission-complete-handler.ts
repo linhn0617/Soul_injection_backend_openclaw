@@ -6,6 +6,7 @@ type CompleteResponse = {
   text?: string;
   successText?: string;
   txHash?: string;
+  transferConfirmed?: boolean;
   error?: string;
 };
 
@@ -29,11 +30,6 @@ export async function handleMissionComplete(params: {
     return { text: "No active agent found. Please click the activation link first." };
   }
 
-  if (sendFollowUp) {
-    await sleep(1000);
-    await sendFollowUp("Mission approved. USDT transfer is now processing.");
-  }
-
   const res = await fetch(`${getBackendUrl()}/v1/mission/complete`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -41,6 +37,9 @@ export async function handleMissionComplete(params: {
   });
   if (!res.ok) {
     const err = await res.text();
+    if (sendFollowUp) {
+      await sendFollowUp(`❌ Transfer failed.\n${err}`);
+    }
     return { text: `❌ Failed to complete mission (${res.status}): ${err}` };
   }
 
@@ -50,6 +49,8 @@ export async function handleMissionComplete(params: {
   }
 
   if (sendFollowUp) {
+    await sleep(1000);
+    await sendFollowUp("Mission approved. USDT transfer is now processing.");
     const suffix = payload.txHash ? `\nTx: https://testnet.bscscan.com/tx/${payload.txHash}` : "";
     await sendFollowUp(`${payload.successText ?? "USDT has been transferred to the agent wallet."}${suffix}`);
     return { text: "✅ Mission submitted. Flow completed." };

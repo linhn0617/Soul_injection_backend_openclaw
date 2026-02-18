@@ -126,11 +126,6 @@ export async function handleGetPermission(
             );
           }, 2000);
         }
-        if (mission) {
-          missionCreationNotice = `Mission ready: ${mission.taskName}. Type /acceptmission to continue.`;
-        } else {
-          missionCreationNotice = "Mission template created. Type /acceptmission to continue.";
-        }
       } else {
         const errText = await missionRes.text();
         missionCreationNotice = `⚠️ Mission push is unavailable right now (${missionRes.status}). ${errText}`;

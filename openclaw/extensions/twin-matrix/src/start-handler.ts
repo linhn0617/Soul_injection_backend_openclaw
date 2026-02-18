@@ -120,10 +120,10 @@ export async function handleTelegramStart(
   }
 
   // 3. 設定 active agent
-  const currentActive = await getActiveAgentId(senderId);
-  if (!currentActive) {
-    await setActiveAgentId(senderId, agentId);
-  }
+  // /start deep-link 成功 bind 後，應以該 agent 作為目前 active，
+  // 避免沿用舊 active 導致 /getPermission 查錯地址。
+  const nextActiveAgentId = bindResult.agentId || agentId;
+  await setActiveAgentId(senderId, nextActiveAgentId);
 
   // 4. ERC8004 完成，提示用戶回網頁授權
   // inject 不在此處執行，待用戶完成 bindAndGrant 後，
