@@ -1,66 +1,67 @@
 # twin-matrix-backend
 
-Twin Matrix 後端服務。負責 AI Agent 的生命週期管理、鏈上授權查詢、以及 Matrix 投影計算，供 OpenClaw extension 呼叫。
+Twin Matrix Backend is the off-chain service layer for the Twin Matrix identity system. It handles AI agent lifecycle management, on-chain authorization queries, and matrix projection computation, serving as the bridge between the SBT contract and the OpenClaw agent runtime.
 
-## 架構定位
+## Project Overview
+
+This backend serves three roles in the Twin Matrix architecture:
+
+- **Agent lifecycle**: register, bind, and resolve AI agents linked to on-chain SBT identities.
+- **Authorization gateway**: read on-chain permissions (scoped, time-bounded grants) and expose them to the agent runtime.
+- **Projection engine**: transform raw 256-dimensional on-chain vectors into semantic soul/skill projections that OpenClaw agents consume at inference time.
+
+The backend does not store user identity data or handle authorization signing. All authorization transactions are signed directly by the user via the frontend wallet.
+
+## Architecture
 
 ```
-前端（Web）       計算 Twin Matrix 分數 → 寫入 SBT 合約
-                  使用者簽署授權交易 → 寫入鏈上授權
-後端（本服務）     Agent 管理 + 鏈上資料查詢 + 投影計算
-OpenClaw          inject 時向後端取得投影 → 注入個人化 soul/skill
+Frontend (Web)     Compute matrix scores  → write to SBT contract
+                   Sign authorization tx  → write on-chain grant
+Backend (this)     Agent management + on-chain reads + projection compute
+OpenClaw           Query backend for projections → inject personalized soul/skill
 ```
 
-後端不儲存使用者身份資料，不處理授權簽署，職責為：
-1. Agent 生命週期管理（註冊、綁定、查詢）
-2. 鏈上授權狀態查詢（讀取 SBT 合約）
-3. Matrix 投影計算（鏈上 256 維向量 → 語義格式轉換）
-4. Agent 與品牌的偏好對齊計算
+## Related Repositories
 
----
+- Smart contracts: https://github.com/BrianYCCheng/TwinMatrixSBT
+- Frontend: https://github.com/gisellelaycc/sweet-ui-magic
 
-## 啟動
+## Repository Structure
+
+- `index.ts`: Express server entry point
+- `routes/`: API route handlers (agent, permission, projection, alignment, mission)
+- `chain/`: on-chain interaction layer (ethers.js v6, SBT reader, agent registry)
+- `.env.example`: environment variable template
+
+## Quick Start
 
 ```bash
 npm install
-cp .env.example .env   # 填入實際環境變數
+cp .env.example .env   # fill in actual values
 npx tsx index.ts
 ```
 
-服務預設啟動於 `http://localhost:3400`。環境變數說明見 `.env.example`。
+Server starts at `http://localhost:3400`.
 
----
+## Core Flows
 
-## 流程概覽
-
-### 啟動 Agent
+### Agent Activation (Flow B)
 
 ```
-[Web]
-1. 建立 Agent → 取得 agentId + Telegram deep link
-2. 使用者點 deep link → 跳轉 Telegram
-
-[Telegram]
-3. /start → 綁定身份 + ERC8004 鏈上註冊
-
-[Web]
-4. 確認鏈上註冊完成 → 使用者簽署授權交易（bindAndGrant）
-
-[Telegram]
-5. 使用者傳訊息 → lazy inject → 查鏈上授權 → 個人化回應
+[Web]       Create agent → receive agentId + Telegram deep link
+[Telegram]  /start → bind identity + ERC-8004 on-chain registration
+[Web]       Confirm registration → user signs bindAndGrant tx
+[Telegram]  User sends message → lazy inject → personalized response
 ```
 
-### 調整授權範圍
+### Permission Update (Flow C)
 
-使用者直接透過前端簽署鏈上交易更新授權，不需經過後端。
-Agent 下次 inject 時自動偵測授權版本變更並重新載入。
+Users sign on-chain transactions directly from the frontend to update authorization scope. The agent automatically detects permission version changes and reloads on next inject.
 
----
+## Tech Stack
 
-## 技術棧
-
-- **Runtime**：Node.js + tsx
-- **框架**：Express.js
-- **鏈上互動**：ethers.js v6
-- **鏈**：BNB Chain Testnet
-- **合約標準**：ERC8004（Agent Registry）、TwinMatrixSBT
+- **Runtime**: Node.js + tsx
+- **Framework**: Express.js
+- **On-chain**: ethers.js v6
+- **Chain**: BNB Smart Chain testnet
+- **Standards**: ERC-8004 (Agent Registry), TwinMatrixSBT (ERC-4671-aligned)
